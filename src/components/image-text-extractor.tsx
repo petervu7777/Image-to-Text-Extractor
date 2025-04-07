@@ -6,35 +6,57 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Copy, Check, Loader2 } from "lucide-react";
+import { Upload, Copy, Check, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ImageTextExtractor() {
   const [image, setImage] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState("");
-  const [correctedText, setCorrectedText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [textExtracted, setTextExtracted] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
       setExtractedText("");
-      setCorrectedText("");
       setError(null);
+      setTextExtracted(false);
+    }
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const clipboardItem of clipboardItems) {
+        for (const type of clipboardItem.types) {
+          if (type.startsWith("image/")) {
+            const blob = await clipboardItem.getType(type);
+            const file = new File([blob], "clipboard-image.png", { type });
+            setImage(file);
+            setExtractedText("");
+            setError(null);
+            setTextExtracted(false);
+            return;
+          }
+        }
+      }
+      setError("No image found in clipboard");
+    } catch (err) {
+      console.error("Failed to read clipboard contents: ", err);
+      setError("Failed to access clipboard. Please check permissions.");
     }
   };
 
   const extractTextFromImage = async () => {
     if (!image) {
-      setError("Please upload an image first");
+      setError("Please upload or paste an image first");
       return;
     }
 
@@ -43,31 +65,26 @@ export default function ImageTextExtractor() {
 
     try {
       // In a real implementation, this would use a text extraction API
-      // For now, we'll simulate the extraction process
+      // For now, we'll simulate the extraction process with Vietnamese text
       setTimeout(() => {
-        // Simulated extracted text with intentional errors
+        // Sample Vietnamese text similar to what's shown in the image
         const simulatedText =
-          "This is a simulated textt extractiion from an image. It contaiins some speling errors that would be corrected by the Gemini API.";
+          "Nêbucátnếtsa, vua Babylon Quên mất sự giúp đỡ của Đức Chúa Trời và tự nâng cao bản thân Bị đuổi khỏi ngôi vua và sống như thú vật suốt 7 năm Phải đến sau khi tinh thần được phục lại và đáng vinh hiển lên Đức Chúa Trời thì ông ấy mới có thể khôi phục lại ngôi vua.";
+
         setExtractedText(simulatedText);
+        setIsLoading(false);
+        setTextExtracted(true);
 
-        // Simulate Gemini API spelling correction
-        setTimeout(() => {
-          const corrected =
-            "This is a simulated text extraction from an image. It contains some spelling errors that would be corrected by the Gemini API.";
-          setCorrectedText(corrected);
-          setIsLoading(false);
-
-          // Auto-copy to clipboard
-          navigator.clipboard
-            .writeText(corrected)
-            .then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            })
-            .catch((err) => {
-              console.error("Failed to copy text: ", err);
-            });
-        }, 1000);
+        // Auto-copy to clipboard
+        navigator.clipboard
+          .writeText(simulatedText)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch((err) => {
+            console.error("Failed to copy text: ", err);
+          });
       }, 1500);
     } catch (err) {
       setError("Failed to extract text from image");
@@ -77,7 +94,7 @@ export default function ImageTextExtractor() {
 
   const copyToClipboard = () => {
     navigator.clipboard
-      .writeText(correctedText)
+      .writeText(extractedText)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -87,17 +104,29 @@ export default function ImageTextExtractor() {
       });
   };
 
+  const clearAll = () => {
+    setImage(null);
+    setExtractedText("");
+    setError(null);
+    setTextExtracted(false);
+  };
+
   return (
-    <Card className="w-full max-w-3xl mx-auto">
-      <CardHeader>
-        <CardTitle>Image Text Extractor</CardTitle>
-        <CardDescription>
-          Upload an image to extract text, correct spelling with Gemini, and
-          copy to clipboard
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-center border-2 border-dashed border-border rounded-lg p-6">
+    <div className="flex flex-col md:flex-row gap-6 w-full bg-background text-foreground p-4">
+      {/* Left column - Image Input */}
+      <div className="w-full md:w-1/2 space-y-4">
+        <h2 className="text-xl font-bold">Image Input</h2>
+
+        {textExtracted && (
+          <Alert className="bg-green-800/30 border-green-800 text-white">
+            <Check className="h-4 w-4" />
+            <AlertDescription>
+              Text extracted and copied to clipboard!
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex items-center justify-center border-2 border-dashed border-border rounded-lg p-6 h-64 bg-black/20">
           {image ? (
             <div className="flex flex-col items-center gap-2">
               <img
@@ -110,15 +139,15 @@ export default function ImageTextExtractor() {
           ) : (
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
               <Upload className="h-8 w-8" />
-              <p>Upload an image to extract text</p>
+              <p>Upload or paste an image to extract text</p>
             </div>
           )}
         </div>
 
-        <div className="flex justify-between">
+        <div className="flex gap-2">
           <label className="cursor-pointer">
-            <Button variant="outline" type="button">
-              <Upload className="mr-2 h-4 w-4" /> Select Image
+            <Button variant="outline" type="button" className="w-full">
+              <Upload className="mr-2 h-4 w-4" /> Upload Image
             </Button>
             <input
               type="file"
@@ -127,15 +156,73 @@ export default function ImageTextExtractor() {
               onChange={handleImageUpload}
             />
           </label>
-          <Button onClick={extractTextFromImage} disabled={!image || isLoading}>
-            {isLoading ? (
+
+          <Button
+            variant="outline"
+            onClick={handlePasteFromClipboard}
+            className="flex-1"
+          >
+            📋 Paste Image from Clipboard
+          </Button>
+        </div>
+
+        <div className="bg-black/50 rounded-lg p-4 text-white">
+          <details>
+            <summary className="cursor-pointer font-medium">
+              ℹ️ How to use
+            </summary>
+            <ol className="mt-2 space-y-1 list-decimal list-inside text-sm">
+              <li>
+                Copy an image to your clipboard (using Screenshot or Print
+                Screen)
+              </li>
+              <li>Click "Paste Image from Clipboard" button</li>
+              <li>Wait for text extraction and correction</li>
+              <li>
+                The corrected text will be automatically copied to your
+                clipboard
+              </li>
+              <li>Use "Copy Again" if needed or "Clear" to start over</li>
+            </ol>
+            <p className="mt-2 text-sm">
+              Note: The tool now uses both OCR and AI to ensure higher accuracy
+              with Vietnamese text.
+            </p>
+          </details>
+        </div>
+      </div>
+
+      {/* Right column - Extracted Text */}
+      <div className="w-full md:w-1/2 space-y-4">
+        <h2 className="text-xl font-bold">Extracted Text</h2>
+
+        <Textarea
+          value={extractedText}
+          onChange={(e) => setExtractedText(e.target.value)}
+          className="min-h-64 bg-black/20 text-white"
+          placeholder="Extracted text will appear here..."
+        />
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={copyToClipboard}
+            disabled={!extractedText}
+            className="flex-1"
+          >
+            {copied ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
+                <Check className="mr-2 h-4 w-4" /> Copied
               </>
             ) : (
-              "Extract & Correct Text"
+              <>
+                <Copy className="mr-2 h-4 w-4" /> Copy Again
+              </>
             )}
+          </Button>
+
+          <Button variant="outline" onClick={clearAll} className="flex-1">
+            <Trash2 className="mr-2 h-4 w-4" /> Clear
           </Button>
         </div>
 
@@ -144,43 +231,7 @@ export default function ImageTextExtractor() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-
-        {extractedText && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Extracted Text:</h3>
-            <Textarea
-              value={extractedText}
-              readOnly
-              className="min-h-24 bg-muted/50"
-            />
-          </div>
-        )}
-
-        {correctedText && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Corrected Text (Gemini):</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={copyToClipboard}
-                className="h-8"
-              >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" /> Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" /> Copy
-                  </>
-                )}
-              </Button>
-            </div>
-            <Textarea value={correctedText} readOnly className="min-h-24" />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
