@@ -3,9 +3,12 @@
 import { useState } from "react";
 import ApiKeyInput from "@/components/api-key-input";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleApiKeySubmit = (key: string) => {
     setApiKey(key);
@@ -28,11 +31,19 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      {!apiKey ? (
-        <ApiKeyInput onSubmit={handleApiKeySubmit} />
-      ) : (
-        <ChatInterface apiKey={apiKey} onSignOut={handleSignOut} />
-      )}
+      <div className="container mx-auto py-4">
+        <div className="flex justify-end mb-4">
+          <Button variant="outline" onClick={() => router.push("/tools")}>
+            Text Extraction Tools
+          </Button>
+        </div>
+
+        {!apiKey ? (
+          <ApiKeyInput onSubmit={handleApiKeySubmit} />
+        ) : (
+          <ChatInterface apiKey={apiKey} onSignOut={handleSignOut} />
+        )}
+      </div>
     </main>
   );
 }
